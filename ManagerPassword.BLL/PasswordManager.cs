@@ -13,17 +13,17 @@ namespace ManagerPassword.BLL
         private readonly PasswordDatabase passwordDatabase;
         private string masterPassword;
         private const string PasswordKeySalt = "SaltForPasswordKey";
-      
-
+        private bool isMasterPasswordSet = false;
+        private int userId;
 
         public PasswordManager()
         {
             passwordDatabase = new PasswordDatabase();
         }
 
-        public void SetMasterPassword()
+        public string GetMasterPassword()
         {
-            try
+            if (!isMasterPasswordSet)
             {
                 Console.WriteLine("Введите мастер-пароль:");
                 masterPassword = Console.ReadLine();
@@ -34,17 +34,26 @@ namespace ManagerPassword.BLL
                 }
 
                 Console.WriteLine("Мастер-пароль установлен.");
+                isMasterPasswordSet = true;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Произошла ошибка при установке мастер-пароля: {ex.Message}");
-            }
+
+            return masterPassword;
+        }
+
+        public bool IsMasterPasswordSet => !string.IsNullOrWhiteSpace(masterPassword);
+        public int UserId => userId;
+
+        public void SetMasterPassword()
+        {
+            GetMasterPassword();
         }
 
         public void AddPasswordEntry()
         {
             try
             {
+                GetMasterPassword(); // Проверка наличия введенного мастер-пароля
+
                 Console.WriteLine("Введите веб-сайт:");
                 string website = Console.ReadLine();
 
@@ -66,7 +75,8 @@ namespace ManagerPassword.BLL
                 {
                     Website = website,
                     Username = username,
-                    EncryptedPassword = encryptedPassword
+                    EncryptedPassword = encryptedPassword,
+                    UserId = UserId // Добавим UserId
                 };
 
                 passwordDatabase.AddPassword(entry);
@@ -114,15 +124,26 @@ namespace ManagerPassword.BLL
                 return null;
             }
         }
+
         public void ViewPasswordEntries()
         {
             try
             {
                 Console.WriteLine("Список сохраненных записей:");
-                var entries = passwordDatabase.GetAllPasswords();
+                var entries = passwordDatabase.GetAllPasswords(UserId);
+
                 foreach (var entry in entries)
                 {
-                    Console.WriteLine($"Веб-сайт: {entry.Website,-20} Логин: {entry.Username}");
+                    Console.Write($"Веб-сайт: {entry.Website,-20} Логин: {entry.Username}");
+
+                    // Расшифровка и отображение пароля, если мастер-пароль установлен
+                    if (IsMasterPasswordSet)
+                    {
+                        string decryptedPassword = DecryptPassword(entry.EncryptedPassword);
+                        Console.Write($" Пароль: {decryptedPassword}");
+                    }
+
+                    Console.WriteLine(); // Переход на новую строку после каждой записи
                 }
             }
             catch (Exception ex)
@@ -131,11 +152,45 @@ namespace ManagerPassword.BLL
             }
         }
 
+        private string DecryptPassword(string encryptedPassword)
+        {
+            try
+            {
+                using (AesManaged aesAlg = new AesManaged())
+                {
+                    Rfc2898DeriveBytes key = new Rfc2898DeriveBytes(masterPassword, Encoding.UTF8.GetBytes(PasswordKeySalt));
+                    aesAlg.Key = key.GetBytes(aesAlg.KeySize / 8);
+                    aesAlg.IV = key.GetBytes(aesAlg.BlockSize / 8);
+
+                    using (ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV))
+                    {
+                        using (MemoryStream msDecrypt = new MemoryStream(Convert.FromBase64String(encryptedPassword)))
+                        {
+                            using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
+                            {
+                                using (StreamReader srDecrypt = new StreamReader(csDecrypt))
+                                {
+                                    return srDecrypt.ReadToEnd();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Произошла ошибка при расшифровке пароля: {ex.Message}");
+                return null;
+            }
+        }
+
         public void SearchPasswordEntries(string query)
         {
             try
             {
-                var searchResults = passwordDatabase.SearchPasswords(query);
+                GetMasterPassword(); // Проверка наличия введенного мастер-пароля
+
+                var searchResults = passwordDatabase.SearchPasswords(UserId, query);
 
                 if (searchResults.Any())
                 {
@@ -147,7 +202,7 @@ namespace ManagerPassword.BLL
                 }
                 else
                 {
-                    Console.WriteLine("Записей не найдено.");
+                    Console.WriteLine($"Запись с запросом '{query}' не найдена.");
                 }
             }
             catch (Exception ex)

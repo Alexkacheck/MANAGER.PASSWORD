@@ -8,6 +8,8 @@ namespace ManagerPassword.DAL
 {
    public class PasswordEntry
     {
+
+        public int UserId { get; set; }
         public string Website { get; set; }
         public string Username { get; set; }
         public string EncryptedPassword { get; set; }

@@ -17,8 +17,6 @@ namespace MANAGER.PASSWORD
         {
             PasswordManager passwordManager = new PasswordManager();
 
-            passwordManager.SetMasterPassword();
-
             while (true)
             {
                 Console.WriteLine("\nВыберите действие:");
@@ -32,15 +30,36 @@ namespace MANAGER.PASSWORD
                 switch (choice)
                 {
                     case "1":
+                        // Добавление записи о пароле
                         passwordManager.AddPasswordEntry();
                         break;
                     case "2":
-                        passwordManager.ViewPasswordEntries();
+                        // Запрос мастер-пароля перед просмотром записей
+                        passwordManager.SetMasterPassword();
+
+                        // Проверка наличия введенного мастер-пароля
+                        if (passwordManager.IsMasterPasswordSet)
+                        {
+                            // Просмотр записей с расшифрованными паролями
+                            passwordManager.ViewPasswordEntries();
+                        }
+                        else
+                        {
+                            Console.WriteLine("Введите мастер-пароль для просмотра записей.");
+                        }
                         break;
                     case "3":
-                        Console.WriteLine("Введите запрос для поиска:");
-                        string query = Console.ReadLine();
-                        passwordManager.SearchPasswordEntries(query);
+                        // Проверка наличия введенного мастер-пароля
+                        if (passwordManager.IsMasterPasswordSet)
+                        {
+                            Console.WriteLine("Введите запрос для поиска:");
+                            string query = Console.ReadLine();
+                            passwordManager.SearchPasswordEntries(query);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Введите мастер-пароль для поиска записей.");
+                        }
                         break;
                     case "4":
                         Console.WriteLine("До свидания!");
@@ -51,6 +70,5 @@ namespace MANAGER.PASSWORD
                 }
             }
         }
-
     }
 }
