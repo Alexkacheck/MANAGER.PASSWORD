@@ -4,7 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ManagerPassword.BLL;
-
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 
 namespace MANAGER.PASSWORD
 {
@@ -12,23 +14,37 @@ namespace MANAGER.PASSWORD
     {
         static void Main(string[] args)
         {
+            // Настройка логгера
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.Logger(lc => lc
+                    .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Warning) // Устанавливаем минимальный уровень для консольного вывода
+                    .WriteTo.File("Log-txt")
+                )
+                .CreateLogger();
+
+            // Запуск приложения управления паролями
             PasswordManagerApp();
         }
 
         static void PasswordManagerApp()
         {
+            // Создание экземпляра класса PasswordManager
             PasswordManager passwordManager = new PasswordManager();
 
+            // Основной цикл приложения
             while (true)
             {
+                // Вывод меню действий
                 Console.WriteLine("\nВыберите действие:");
                 Console.WriteLine("1. Добавить запись о пароле");
                 Console.WriteLine("2. Просмотреть записи");
                 Console.WriteLine("3. Поиск записей");
                 Console.WriteLine("4. Выйти");
 
+                // Считывание выбора пользователя
                 string choice = Console.ReadLine();
 
+                // Обработка выбора
                 switch (choice)
                 {
                     case "1":

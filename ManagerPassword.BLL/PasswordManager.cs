@@ -5,6 +5,9 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using ManagerPassword.DAL;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 
 namespace ManagerPassword.BLL
 {
@@ -16,51 +19,62 @@ namespace ManagerPassword.BLL
         private bool isMasterPasswordSet = false;
         private int userId;
 
+        // Создаем логгер
+        private static readonly ILogger Log = new LoggerConfiguration()
+            .WriteTo.Console() // Указываем, что логи будут выводиться в консоль
+            .CreateLogger();
+
         public PasswordManager()
         {
             passwordDatabase = new PasswordDatabase();
         }
 
+        // Получение мастер-пароля
         public string GetMasterPassword()
         {
             if (!isMasterPasswordSet)
             {
-                Console.WriteLine("Введите мастер-пароль:");
+                Console.Write("Введите мастер-пароль:");
                 masterPassword = Console.ReadLine();
 
                 if (string.IsNullOrWhiteSpace(masterPassword))
                 {
-                    Console.WriteLine("Предупреждение: Пустой пароль может быть небезопасным.");
+                    Log.Warning("Предупреждение: Пустой пароль может быть небезопасным.");
                 }
 
-                Console.WriteLine("Мастер-пароль установлен.");
+                Log.Information("Мастер-пароль установлен.");
                 isMasterPasswordSet = true;
             }
 
             return masterPassword;
         }
 
+        // Проверка, установлен ли мастер-пароль
         public bool IsMasterPasswordSet => !string.IsNullOrWhiteSpace(masterPassword);
+
+        // Получение идентификатора пользователя
         public int UserId => userId;
 
+        // Установка мастер-пароля
         public void SetMasterPassword()
         {
             GetMasterPassword();
         }
 
+        // Добавление новой записи о пароле
         public void AddPasswordEntry()
         {
             try
             {
                 GetMasterPassword(); // Проверка наличия введенного мастер-пароля
 
-                Console.WriteLine("Введите веб-сайт:");
+                Log.Information("Введите веб-сайт:");
                 string website = Console.ReadLine();
 
-                Console.WriteLine("Введите логин:");
+                Log.Information("Введите логин:");
                 string username = Console.ReadLine();
 
-                Console.WriteLine("Введите пароль:");
+                Log.Information("Введите пароль:");
                 string password = Console.ReadLine();
 
                 // Проверки на пустые строки или недопустимые символы
@@ -83,14 +97,15 @@ namespace ManagerPassword.BLL
             }
             catch (ArgumentException ex)
             {
-                Console.WriteLine($"Ошибка: {ex.Message}");
+                Log.Error($"Ошибка: {ex.Message}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Произошла ошибка при добавлении записи: {ex.Message}");
+                Log.Error($"Произошла ошибка при добавлении записи: {ex.Message}");
             }
         }
 
+        // Шифрование пароля
         private string EncryptPassword(string password)
         {
             try
@@ -120,38 +135,40 @@ namespace ManagerPassword.BLL
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Произошла ошибка при шифровании пароля: {ex.Message}");
+                Log.Error($"Произошла ошибка при шифровании пароля: {ex.Message}");
                 return null;
             }
         }
 
+        // Просмотр записей о паролях
         public void ViewPasswordEntries()
         {
             try
             {
-                Console.WriteLine("Список сохраненных записей:");
+                Log.Information("Список сохраненных записей:");
                 var entries = passwordDatabase.GetAllPasswords(UserId);
 
                 foreach (var entry in entries)
                 {
-                    Console.Write($"Веб-сайт: {entry.Website,-20} Логин: {entry.Username}");
+                    Log.Information($"Веб-сайт: {entry.Website,-20} Логин: {entry.Username}");
 
                     // Расшифровка и отображение пароля, если мастер-пароль установлен
                     if (IsMasterPasswordSet)
                     {
                         string decryptedPassword = DecryptPassword(entry.EncryptedPassword);
-                        Console.Write($" Пароль: {decryptedPassword}");
+                        Log.Information($" Пароль: {decryptedPassword}");
                     }
 
-                    Console.WriteLine(); // Переход на новую строку после каждой записи
+                    Log.Information("Добавлена новая запись в базу данных"); // Переход на новую строку после каждой записи
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Произошла ошибка при просмотре записей: {ex.Message}");
+                Log.Error($"Произошла ошибка при просмотре записей: {ex.Message}");
             }
         }
 
+        // Расшифровка пароля
         private string DecryptPassword(string encryptedPassword)
         {
             try
@@ -179,11 +196,12 @@ namespace ManagerPassword.BLL
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Произошла ошибка при расшифровке пароля: {ex.Message}");
+                Log.Error($"Произошла ошибка при расшифровке пароля: {ex.Message}");
                 return null;
             }
         }
 
+        // Поиск записей о паролях по запросу
         public void SearchPasswordEntries(string query)
         {
             try
@@ -194,20 +212,20 @@ namespace ManagerPassword.BLL
 
                 if (searchResults.Any())
                 {
-                    Console.WriteLine("Результаты поиска:");
+                    Log.Information("Результаты поиска:");
                     foreach (var entry in searchResults)
                     {
-                        Console.WriteLine($"Веб-сайт: {entry.Website,-20} Логин: {entry.Username}");
+                        Log.Information($"Веб-сайт: {entry.Website,-20} Логин: {entry.Username}");
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"Запись с запросом '{query}' не найдена.");
+                    Log.Information($"Запись с запросом '{query}' не найдена.");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Произошла ошибка при поиске записей: {ex.Message}");
+                Log.Error($"Произошла ошибка при поиске записей: {ex.Message}");
             }
         }
     }
